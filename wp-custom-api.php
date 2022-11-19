@@ -1,4 +1,6 @@
 <?php
+require_once(ABSPATH . 'wp-custom-api-users.php');
+
 add_action('rest_api_init', function () {
     // Get Image thumbnail by featured_media id
     register_rest_field(
@@ -30,6 +32,15 @@ add_action('rest_api_init', function () {
         'commentReplyCount',
         array('get_callback' => 'getCommentReplyCount')
     );
+});
+
+add_action('rest_api_init', function(){
+    $wpRoles = wp_roles();
+    $capSubscriber = $wpRoles->get_role('subscriber');
+
+    if(!$capSubscriber->capabilities['upload_files']){
+        $wpRoles->add_cap('subscriber', 'upload_files');
+    }
 });
 
 function getMediaUrl($post, $field_name, $request)
@@ -118,3 +129,23 @@ add_filter('rest_endpoints', function ($routes) {
 
     return $routes;
 });
+
+add_filter('rest_prepare_user', function($response, $user, $request){
+
+    $data = $response->get_data();
+    $user_id = $data['id'];
+
+    if($user_id){
+        $data['email'] = $user->data->user_email;
+        $data['user_name'] = $user->data->user_login;
+        $data['nickname'] = get_user_meta($user_id, 'nickname')[0];
+        $data['first_name'] = get_user_meta($user_id, 'first_name')[0];
+        $data['last_name'] = get_user_meta($user_id, 'last_name')[0];
+    }
+
+    $response = rest_ensure_response($data);
+
+    return $response;
+}, 10, 3);
+
+
